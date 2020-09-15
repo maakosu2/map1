@@ -1,0 +1,284 @@
+
+import React, { useEffect, useRef, Fragment, useState } from 'react';
+import { select, line, curveCardinal, axisBottom, scaleLinear, axisRight, scaleBand } from 'd3'
+import * as d3 from 'd3'
+import { Button } from 'reactstrap';
+//import unflatten from './convert_arry'
+
+const Test = (props) => {
+    const [Counter, setCounter] = useState(2)
+// ffunction for manaipulationg the list 
+    const [data, setdata] = useState({})
+    function unflatten(arr) {
+        var tree = [],
+            mappedArr = {},
+            arrElem,
+            mappedElem;
+
+        // First map the nodes of the array to an object -> create a hash table.
+        for (var i = 0, len = arr.length; i < len; i++) {
+            arrElem = arr[i];
+            mappedArr[arrElem.Bacteria_Name] = arrElem;
+            mappedArr[arrElem.Bacteria_Name]['children'] = [];
+        }
+
+
+        for (var Bacteria_Name in mappedArr) {
+            if (mappedArr.hasOwnProperty(Bacteria_Name)) {
+                mappedElem = mappedArr[Bacteria_Name];
+                // If the element is not at the root level, add it to its parent array of children.
+                if (mappedElem.parentid) {
+                    let { Bacteria_Name, children } = mappedElem
+                    mappedArr[mappedElem['parentid']]['children'].push({ Bacteria_Name, children });
+                }
+                // If the element is at the root level, add it to first level elements array.
+                else {
+                    let { Bacteria_Name, children } = mappedElem
+                    tree.push({ Bacteria_Name, children });
+                }
+            }
+        }
+        return tree;
+    }
+
+    const { setbacteria_List, bacteria_List, barchart_list, setbarchart_list, inputState } = props
+   // let data1 = unflatten(bacteria_List)
+   
+    
+    //unflatten(data1)
+    //console.log('mandela')
+    //console.log(data1)
+    //console.log(bacteria_List)
+    const { Mutation_Rate_Bacteria,
+        Reproductive_Rate_Resistant,
+        Reproductive_Rate_simple,
+        Survial_Prob_Resistance_Bacteria,
+        Survial_Prob_Simple_Bacteria,
+        Total_Number_Bacteria,
+        number_Resistant_Bacteria,
+        number_simple_Bacteria } = inputState;
+    // need to get the values or the bacteria form the form to enale the the assignment of the bacteria a number serials values
+    let e = /Norm_Bact_\d+/;
+    let f = /Rest_Bact_\d+/;
+    let nbact = bacteria_List.filter(data => { return e.test(data['Bacteria_Name']) }).length;
+    let res = bacteria_List.filter(data => { return f.test(data.Bacteria_Name) }).length;
+    
+    function Counter_Bacteria() {
+        setCounter((list_b)=>{return list_b+1})
+        let start_count = 0;
+        let Num_nbact = bacteria_List.filter(data => { return e.test(data['Bacteria_Name']) }).length;
+        let Num_res = bacteria_List.filter(data => { return f.test(data.Bacteria_Name) }).length
+        setbarchart_list((barchart_list) => { return [...barchart_list, [ Counter , Num_nbact, Num_res,]] });
+        //console.log(barchart_list)
+    }
+    
+    function Bacteria() {
+        
+        
+        bacteria_List.map(bacteria => {
+            
+            
+            let nbact = bacteria_List.filter(data => { return e.test(data['Bacteria_Name']) }).length;
+            let res = bacteria_List.filter(data => { return f.test(data.Bacteria_Name) }).length;
+            let total_bat_count = res + nbact;
+            let density_space = total_bat_count/20;
+            let treament_factor = 1;// as to be set by input loggger
+            if (f.test(bacteria.Bacteria_Name)) {
+                if (Math.random() < (Survial_Prob_Resistance_Bacteria * treament_factor)) {
+                    if (Math.random() < (Reproductive_Rate_Resistant *( treament_factor)*(1-density_space))) {
+                        res++
+                        //console.log('res', density_space)
+                        setbacteria_List((list_b) => { return [...list_b, { "Bacteria_Name": `Rest_Bact_${res}`, 'parentid': bacteria.Bacteria_Name }] })
+                    }
+                    else {
+                        // do nothing resistant bacteria surived but did not reproduce
+
+                    }
+                }
+                else {
+                    // remove the resistant bacteria because it didnt survive
+                    let mod_bacteria_List =JSON.parse(JSON.stringify(bacteria_List));
+                    var remove_index = mod_bacteria_List.indexOf(bacteria.Bacteria_Name);
+                    if (remove_index > -1) {
+                        mod_bacteria_List.splice(remove_index, 1)
+                        setbacteria_List((list_b) => {return [...mod_bacteria_List] })
+                    }
+                }
+
+            }
+
+            else  {
+                let total_bat_count = bacteria.length;
+                let density_space = total_bat_count/20;
+                //console.log("density value");
+                if (Math.random() < (Survial_Prob_Simple_Bacteria * treament_factor)) {
+                   // console.log('yess',bacteria)
+                    if (Math.random() < (treament_factor*Reproductive_Rate_simple*(1-density_space))) {
+                        //console.log(Reproductive_Rate_simple * (1 - density_space))
+                        if (Math.random() < Mutation_Rate_Bacteria/(treament_factor)) {
+                            // muatation of normal bacteria to a resistant bacteria
+                            res++
+
+                                setbacteria_List((list_b) => { return [...list_b, { "Bacteria_Name": `Rest_Bact_${res}`, 'parentid': bacteria.Bacteria_Name }] })
+
+                        } else {
+                            // set the normal bacteria number by 1
+                            // noral bacteria is reproduced
+                            nbact++
+                            setbacteria_List((list_b) => { return [...list_b, { "Bacteria_Name": `Norm_Bact_${nbact}`, 'parentid': bacteria.Bacteria_Name }] })
+
+                        }
+
+                    } else {
+                        // do nothing because normal bactria survived but didnt reproduce
+                    }
+
+                } else {
+                    // remove the normal because it didnt survive..
+                    let mod_bacteria_List = JSON.parse(JSON.stringify(bacteria_List));
+                    var remove_index = mod_bacteria_List.indexOf(bacteria.Bacteria_Name);
+                    if (remove_index > -1) {
+                        mod_bacteria_List.splice(remove_index, 1)
+                        setbacteria_List((list_b) => { return [...mod_bacteria_List] })
+                    }
+
+                }
+
+
+
+            }
+
+        })
+        
+        let data1 = JSON.parse(JSON.stringify(bacteria_List)); unflatten(data1)
+
+        setdata(() => ({
+
+            "Bacteria_Name": "Human Host",
+            "children": [...data1
+
+            ]
+
+        }))
+      
+    }
+    // need to be asyn function in which the value of the Bacteria() is then passed to the the Counter_Bacteria().
+    const handle_simulation = () => {
+         Bacteria()
+        //console.log('mandelaakosu')
+        Counter_Bacteria()
+    }
+
+// end of the list function manipulations
+
+    const svgRef = useRef();
+    //data1 = JSON.parse(JSON.stringify(bacteria_List));
+    //console.log('re',data1)
+    
+    
+        //console.log('data1', JSON.stringify(data1))
+        const height = 400
+        const width = 400
+        const color = (d) => {
+            const scale = d3.scaleOrdinal(d3.schemeCategory10);
+            return d => scale(d.group);
+        }
+        const drag = simulation => {
+
+            function dragstarted(d) {
+                if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(d) {
+                d.fx = d3.event.x;
+                d.fy = d3.event.y;
+            }
+
+            function dragended(d) {
+                if (!d3.event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+
+            return d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended);
+        }
+   
+
+function post(params) {
+    //console.log('join effect', data)
+    console.log('who',barchart_list)
+    const svg = select(svgRef.current);
+    svg.attr("width", width).attr("height", height);
+console.log('ttie',)
+    const root = d3.hierarchy(data);
+    const links = root.links();
+    console.log('root', root)
+    console.log('links',links)
+    const nodes = root.descendants();
+    const simulation = d3.forceSimulation(nodes)
+        .force("link", d3.forceLink(links).id(d => d.id).distance(0).strength(.0891))
+        .force("charge", d3.forceManyBody().strength(-70))
+        .force("x", d3.forceX())
+        .force("y", d3.forceY());
+
+    svg.attr("viewBox", [-width / 2, -height / 2, width, height]);
+
+    const link = svg.append("g")
+        .attr("stroke", "#999")
+        .attr("stroke-opacity", 0.8)
+        .selectAll("line")
+        .data(links)
+        .join("line")
+
+    const node = svg.append("g")
+        .attr("fill", "yellow")
+        .attr("stroke", "#000")
+        .attr("stroke-width", 1.5)
+        .selectAll("circle")
+        .data(nodes)
+        .join("circle")
+        .attr("fill", d => f.test(d.data.Bacteria_Name) ? "red" : e.test(d.data.Bacteria_Name) ? "green" : "blue")
+        .attr("stroke", d => d.children ? null : "red")
+        .attr("r", 5.5)
+        .call(drag(simulation))
+
+
+    node.append("title")
+        .text(d => d.data.Bacteria_Name);
+
+    simulation.on("tick", () => {
+        link
+            .attr("x1", d => d.source.x)
+            .attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x)
+            .attr("y2", d => d.target.y);
+
+        node
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y);
+    });
+
+}
+
+        // will be called initially and on every data change
+    useEffect(() => {
+        post()
+        }, [data]);
+
+
+        return (
+            <div>
+                <svg ref={svgRef} />
+           
+       
+                <Button className="m-1" onClick={() => { handle_simulation()}} type="submit">Simulation</Button>
+            </div>
+        );
+    }
+
+export default Test;
